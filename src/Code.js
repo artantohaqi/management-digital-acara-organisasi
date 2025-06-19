@@ -1,9 +1,9 @@
 /**
  * Konfigurasi ID Form dan ID Google Calendar
  */
-const FORM_ID = "xxxxxxx"; // Ganti dengan ID Form
-const CALENDAR_ID = "xxxxxxx"; // Ganti dengan ID Kalender
-const ADMIN_EMAIL = "xxxxxxx"; // Ganti dengan email admin
+const FORM_ID = "xxxxx"; // Ganti dengan ID Form
+const CALENDAR_ID = "xxxxx@group.calendar.google.com"; // Ganti dengan ID Kalender
+const ADMIN_EMAIL = "xxxxx@gmail.com"; // Ganti dengan email admin
 
 /**
  * Menangani submit dari Google Form
