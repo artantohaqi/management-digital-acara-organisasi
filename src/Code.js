@@ -1,9 +1,9 @@
 /**
  * Konfigurasi ID Form dan ID Google Calendar
  */
-const FORM_ID = "xxxxx"; // Ganti dengan ID Form
-const CALENDAR_ID = "xxxxx@group.calendar.google.com"; // Ganti dengan ID Kalender
-const ADMIN_EMAIL = "xxxxx@gmail.com"; // Ganti dengan email admin
+const FORM_ID = "xxxx"; // Ganti dengan ID Form
+const CALENDAR_ID = "xxxx@group.calendar.google.com"; // Ganti dengan ID Kalender
+const ADMIN_EMAIL = "xxxx@gmail.com"; // Ganti dengan email admin
 
 /**
  * Menangani submit dari Google Form
@@ -24,10 +24,24 @@ function onFormSubmit(e) {
   const jamSelesaiRaw = data[10];
 
   const jamMulai = parseTime(jamMulaiRaw);
-  tanggalMulai.setHours(jamMulai.hours, jamMulai.minutes, 0);
+  Logger.log(`Jam Mulai sebelum setHours: ${jamMulai.hours}:${jamMulai.minutes}`);
+  tanggalMulai.setHours(jamMulai.hours, jamMulai.minutes, 0); // Pastikan menit diterapkan
+  Logger.log(`Jam Mulai setelah setHours: ${tanggalMulai.getHours()}:${tanggalMulai.getMinutes()}`);
 
-  const jamSelesai = parseTime(jamSelesaiRaw || "12:00 PM");
-  tanggalSelesai.setHours(jamSelesai.hours, jamSelesai.minutes, 0);
+  let jamSelesai;
+  if (!jamSelesaiRaw) {
+    // Jika jam selesai kosong, tambah 2 jam dari jam mulai
+    jamSelesai = {
+      hours: (jamMulai.hours + 2) % 24,
+      minutes: jamMulai.minutes
+    };
+    Logger.log(`Jam Selesai dihitung: ${jamSelesai.hours}:${jamSelesai.minutes} (dari Jam Mulai + 2 jam)`);
+  } else {
+    jamSelesai = parseTime(jamSelesaiRaw);
+    Logger.log(`Jam Selesai sebelum setHours: ${jamSelesai.hours}:${jamSelesai.minutes}`);
+  }
+  tanggalSelesai.setHours(jamSelesai.hours, jamSelesai.minutes, 0); // Pastikan menit diterapkan
+  Logger.log(`Jam Selesai setelah setHours: ${tanggalSelesai.getHours()}:${tanggalSelesai.getMinutes()}`);
 
   const calendar = CalendarApp.getCalendarById(CALENDAR_ID);
   const eventTitle = `${jenisAcara} - ${namaAcara}`;
@@ -87,14 +101,49 @@ function onFormSubmit(e) {
  * Parsing waktu seperti "07:00 AM"
  */
 function parseTime(timeStr) {
-  const parts = timeStr.toString().split(/[: ]/);
-  let hours = parseInt(parts[0]) || 0;
-  const minutes = parseInt(parts[1]) || 0;
-  const period = (parts[2] || "AM").toUpperCase();
+  // Konversi ke string dan log input awal
+  const inputStr = String(timeStr || '').trim();
+  Logger.log(`Input timeStr: ${inputStr} (Tipe: ${typeof timeStr})`);
 
+  let hours = 0;
+  let minutes = 0;
+  let period = "AM";
+
+  // Coba ekstrak waktu dari string panjang (misalnya, dari Date)
+  const timeMatch = inputStr.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s?(AM|PM)/i); // Menangani format seperti 11:11:00 AM
+  if (timeMatch) {
+    hours = parseInt(timeMatch[1], 10) || 0;
+    minutes = parseInt(timeMatch[2], 10) || 0; // Ambil menit dari timeMatch[2]
+    period = (timeMatch[3] || "AM").toUpperCase();
+    Logger.log(`Ekstraksi berhasil: ${hours}:${minutes} ${period}`);
+  } else {
+    // Pisah berdasarkan pemisah standar
+    const parts = inputStr.split(/[: ]/).filter(part => part && part.length);
+    Logger.log(`Parts setelah split: ${parts}`);
+
+    if (parts.length >= 2) {
+      hours = parseInt(parts[0], 10) || 0;
+      minutes = parseInt(parts[1], 10) || 0;
+      if (parts.length >= 3 && ["AM", "PM"].includes(parts[2].toUpperCase())) {
+        period = parts[2].toUpperCase();
+      } else {
+        Logger.log(`Periode tidak valid atau hilang: ${parts}`);
+      }
+    } else {
+      Logger.log(`Pencocokan gagal: Format waktu tidak valid. Input: ${inputStr}. Harus dalam format HH:MM AM/PM`);
+      return { hours: 0, minutes: 0 };
+    }
+  }
+
+  // Konversi 12-jam ke 24-jam
   if (period === "PM" && hours !== 12) hours += 12;
   if (period === "AM" && hours === 12) hours = 0;
 
+  // Validasi rentang
+  hours = Math.min(Math.max(hours, 0), 23);
+  minutes = Math.min(Math.max(minutes, 0), 59);
+
+  Logger.log(`Hasil parsing: ${hours}:${minutes} ${period} (24h: ${hours})`);
   return { hours, minutes };
 }
 
@@ -109,12 +158,12 @@ function updateDropdownLabelColumn() {
     const jenis = data[i][4];
     const nama = data[i][5];
     const tanggal = data[i][6];
-    const jam = data[i][7];
+    const jam = data[i][7]; // Ambil langsung dari kolom H (Jam Mulai)
     const uid = data[i][13];
 
     if (nama && uid) {
       const tanggalFormatted = Utilities.formatDate(new Date(tanggal), "GMT+07:00", "dd/MM/yyyy");
-      const label = `${jenis} - ${nama} | ${tanggalFormatted} | ${jam}`;
+      const label = `${jenis} - ${nama} | ${tanggalFormatted} | ${jam}`; // Gunakan nilai asli dari kolom H
       sheet.getRange(i + 1, 13).setValue(label); // Kolom M
     } else {
       sheet.getRange(i + 1, 13).setValue(""); // Kosongkan jika tidak valid
